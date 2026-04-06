@@ -34,6 +34,7 @@ const commandInput    = document.getElementById('command-input');
 const contentPanel    = document.getElementById('content-panel');
 const dashboardView   = document.getElementById('dashboard-view');
 const canvas          = document.getElementById('canvas');
+const articleReader   = document.getElementById('article-reader');
 const autocomplete    = document.getElementById('autocomplete');
 const statusMsg       = document.getElementById('status-msg');
 const marketIndices   = document.getElementById('market-indices');
@@ -560,8 +561,10 @@ async function renderNews(ticker) {
                       : a.sentiment === 'negative' ? 'badge-negative'
                       : 'badge-neutral';
       const timeStr = a.published_at ? timeAgo(a.published_at) : '';
+      const escapedUrl  = (a.link || '').replace(/'/g, "\\'");
+      const escapedTitle = (a.title || 'Untitled').replace(/'/g, "\\'");
       const titleHtml = a.link
-        ? `<a href="${a.link}" target="_blank" rel="noopener">${a.title || 'Untitled'}</a>`
+        ? `<a href="#" onclick="event.preventDefault();_articleReturnFn=()=>{renderNews('${ticker}')};openArticle('${escapedUrl}','${escapedTitle}','${a.sentiment || ''}','${a.publisher || ''}','${a.published_at || ''}')">${a.title || 'Untitled'}</a>`
         : (a.title || 'Untitled');
 
       return `
@@ -879,6 +882,102 @@ function updateMarketStatus() {
 setInterval(updateMarketStatus, 30000);
 updateMarketStatus();
 
+// ─── ARTICLE READER ───────────────────────────────────────────────────────────
+
+// Track where to return when user presses Back
+let _articleReturnFn = null;
+
+async function openArticle(url, title, sentiment, source, publishedAt) {
+  if (!url) return;
+
+  // Remember what to go back to
+  _articleReturnFn = _articleReturnFn || (() => showDashboard());
+
+  showArticleReader();
+  setStatus(`Loading article…`);
+
+  const sentClass = sentiment === 'positive' ? 'positive'
+                  : sentiment === 'negative' ? 'negative' : 'neutral';
+  const sentLabel = sentiment || 'neutral';
+
+  // Show skeleton while fetching
+  articleReader.innerHTML = `
+    <div class="ar-topbar">
+      <button class="ar-back" onclick="closeArticle()">← BACK</button>
+      ${source ? `<span class="ar-source-badge">${source}</span>` : ''}
+      <span class="ar-sentiment ${sentClass}">${sentLabel}</span>
+      ${publishedAt ? `<span class="dimmed" style="font-size:10px">${timeAgo(publishedAt)}</span>` : ''}
+      <a class="ar-open-btn" href="${url}" target="_blank" rel="noopener">OPEN IN BROWSER ↗</a>
+    </div>
+    <div class="ar-loading">Fetching article</div>
+  `;
+
+  try {
+    const data = await apiFetch(`/api/article/preview?url=${encodeURIComponent(url)}`);
+
+    const heroHtml = data.image
+      ? `<img class="ar-hero" src="${data.image}" alt="" onerror="this.style.display='none'" />`
+      : '';
+
+    let parasHtml;
+    if (data.blocked) {
+      parasHtml = `
+        <div class="ar-blocked">
+          <div class="ar-blocked-icon">⊘</div>
+          <div class="ar-blocked-msg">This publisher requires browser access (cookie consent / paywall).</div>
+          <a class="ar-blocked-btn" href="${url}" target="_blank" rel="noopener">Open Full Article ↗</a>
+        </div>`;
+    } else if (data.paragraphs && data.paragraphs.length) {
+      parasHtml = `<div class="ar-paragraphs">${data.paragraphs.map(p => `<p class="ar-paragraph">${p}</p>`).join('')}</div>`;
+    } else {
+      parasHtml = `<p class="ar-no-content">Article body could not be extracted — the source may use JavaScript rendering.</p>`;
+    }
+
+    const displayTitle = data.title || title || 'Article';
+    const siteName     = data.site_name || source || '';
+
+    articleReader.innerHTML = `
+      <div class="ar-topbar">
+        <button class="ar-back" onclick="closeArticle()">← BACK</button>
+        ${siteName ? `<span class="ar-source-badge">${siteName}</span>` : ''}
+        <span class="ar-sentiment ${sentClass}">${sentLabel}</span>
+        ${publishedAt ? `<span class="dimmed" style="font-size:10px">${timeAgo(publishedAt)}</span>` : ''}
+        <a class="ar-open-btn" href="${url}" target="_blank" rel="noopener">OPEN IN BROWSER ↗</a>
+      </div>
+      ${heroHtml}
+      <div class="ar-body">
+        <h1 class="ar-title">${displayTitle}</h1>
+        ${data.description ? `<p class="ar-description">${data.description}</p>` : ''}
+        ${parasHtml}
+      </div>
+    `;
+
+    setStatus(`${siteName ? siteName + ' · ' : ''}${displayTitle.slice(0, 60)}`);
+  } catch (err) {
+    articleReader.querySelector('.ar-loading')?.remove();
+    articleReader.insertAdjacentHTML('beforeend',
+      `<div class="ar-error">Could not load article: ${err.message}</div>
+       <div class="ar-body"><h1 class="ar-title">${title || 'Article'}</h1></div>`
+    );
+  }
+}
+
+function closeArticle() {
+  articleReader.classList.remove('visible');
+  articleReader.style.display = 'none';
+  // Return to wherever we came from
+  if (_articleReturnFn) {
+    _articleReturnFn();
+    _articleReturnFn = null;
+  } else {
+    showDashboard();
+  }
+}
+
+// Expose for inline onclick handlers
+window.openArticle  = openArticle;
+window.closeArticle = closeArticle;
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 initDashboard();
 setStatus("Dashboard — Press \` to enter a command");
@@ -893,12 +992,23 @@ setStatus("Dashboard — Press \` to enter a command");
 function showDashboard() {
   dashboardView.style.display = 'block';
   contentPanel.style.display  = 'none';
+  articleReader.classList.remove('visible');
+  articleReader.style.display = 'none';
   setStatus("Dashboard — Press \` to enter a command");
 }
 
 function showContent() {
   dashboardView.style.display = 'none';
+  articleReader.classList.remove('visible');
+  articleReader.style.display = 'none';
   contentPanel.style.display  = 'block';
+}
+
+function showArticleReader() {
+  dashboardView.style.display = 'none';
+  contentPanel.style.display  = 'none';
+  articleReader.style.display = 'flex';
+  articleReader.classList.add('visible');
 }
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
@@ -1170,13 +1280,15 @@ async function loadNewsCard(card, body) {
 
   const items = articles.slice(0, 15).map(a => {
     const dot = a.sentiment === 'positive' ? 'dot-pos' : a.sentiment === 'negative' ? 'dot-neg' : 'dot-neu';
-    const title = a.link
-      ? `<a href="${a.link}" target="_blank" rel="noopener">${a.title || 'Untitled'}</a>`
+    const escapedUrl   = (a.link  || '').replace(/'/g, "\\'");
+    const escapedTitle = (a.title || 'Untitled').replace(/'/g, "\\'");
+    const titleHtml = a.link
+      ? `<a href="#" onclick="event.preventDefault();_articleReturnFn=()=>showDashboard();openArticle('${escapedUrl}','${escapedTitle}','${a.sentiment || ''}','${a.publisher || ''}','${a.published_at || ''}')">${a.title || 'Untitled'}</a>`
       : (a.title || 'Untitled');
     return `
       <div class="ncard-item">
         <span class="sent-dot ${dot}"></span>
-        <div class="ncard-title">${title}</div>
+        <div class="ncard-title">${titleHtml}</div>
       </div>`;
   }).join('');
 
