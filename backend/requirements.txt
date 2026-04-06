@@ -1,0 +1,7 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+yfinance>=0.2.43
+pandas>=2.0.0
+requests>=2.32.0
+vaderSentiment==3.3.2
+python-multipart>=0.0.9

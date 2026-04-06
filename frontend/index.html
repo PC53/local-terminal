@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TERMINAL — Local Financial Terminal</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div id="logo">TERMINAL</div>
+    <button id="dash-btn" onclick="showDashboard()" title="Dashboard (Home)">DASH</button>
+
+    <div id="command-input-wrapper" class="hidden">
+      <span id="command-prompt">&gt;</span>
+      <input id="command-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="DES AAPL · CHART TSLA · ADD CHART NVDA · HELP" />
+    </div>
+
+    <div id="market-status">
+      <span id="market-status-dot" class="status-dot"></span>
+      <span id="market-status-label">--</span>
+    </div>
+  </div>
+
+  <!-- AUTOCOMPLETE DROPDOWN -->
+  <div id="autocomplete"></div>
+
+  <!-- MAIN PANEL -->
+  <div id="main-panel">
+
+    <!-- DASHBOARD — shown by default -->
+    <div id="dashboard-view">
+      <div id="canvas"></div>
+    </div>
+
+    <!-- CONTENT — shown when a command runs -->
+    <div id="content-panel" style="display:none;"></div>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="status-bar">
+    <span id="clock"></span>
+    <span id="market-indices"></span>
+    <span id="status-msg">Ready &mdash; Press ` to enter command</span>
+  </div>
+
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
