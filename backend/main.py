@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from routers import quote, chart, news, financials, screen
+from routers import quote, chart, news, financials, screen, article
 
 app = FastAPI(title="Local Terminal", version="1.0.0")
 
@@ -30,6 +30,7 @@ app.include_router(chart.router, prefix="/api")
 app.include_router(news.router, prefix="/api")
 app.include_router(financials.router, prefix="/api")
 app.include_router(screen.router, prefix="/api")
+app.include_router(article.router, prefix="/api")
 
 # Serve frontend static files
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
