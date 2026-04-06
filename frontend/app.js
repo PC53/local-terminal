@@ -475,8 +475,8 @@ async function renderChart(ticker, activePeriod = '1mo', activeInterval = '1d') 
 
     _chartInstance = chart;
 
-    // Candlestick series
-    const candleSeries = chart.addCandlestickSeries({
+    // Candlestick series (v4+ API)
+    const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
       upColor:        '#33E29A',
       downColor:      '#ff4455',
       borderUpColor:  '#33E29A',
@@ -486,8 +486,8 @@ async function renderChart(ticker, activePeriod = '1mo', activeInterval = '1d') 
     });
     candleSeries.setData(data);
 
-    // Volume histogram
-    const volSeries = chart.addHistogramSeries({
+    // Volume histogram (v4+ API)
+    const volSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
       color: '#1e1e1e',
@@ -1109,14 +1109,14 @@ async function loadChartCard(card, body) {
     handleScale:  { mouseWheel: true },
   });
 
-  const candles = chart.addCandlestickSeries({
+  const candles = chart.addSeries(LightweightCharts.CandlestickSeries, {
     upColor: '#33E29A', downColor: '#ff4455',
     borderUpColor: '#33E29A', borderDownColor: '#ff4455',
     wickUpColor: '#33E29A', wickDownColor: '#ff4455',
   });
   candles.setData(data);
 
-  const volSeries = chart.addHistogramSeries({
+  const volSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
     priceFormat: { type: 'volume' },
     priceScaleId: 'vol',
   });
