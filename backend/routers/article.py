@@ -3,42 +3,34 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from services.http import make_session
+
 router = APIRouter()
 
 # ── Sessions ──────────────────────────────────────────────────────────────────
-# We maintain a general session and a Yahoo-specific one with consent cookies.
+# We maintain a general session for article scraping and a Yahoo-specific one
+# with a pre-accepted consent cookie so we don't land on the consent wall.
 
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Cache-Control": "no-cache",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
+_BROWSER_EXTRA = {
+    "Accept-Encoding":  "gzip, deflate, br",
+    "Cache-Control":    "no-cache",
+    "Sec-Fetch-Dest":   "document",
+    "Sec-Fetch-Mode":   "navigate",
+    "Sec-Fetch-Site":   "none",
 }
 
-_session = requests.Session()
-_session.headers.update(_HEADERS)
+_HTML_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
 
-_yahoo_session = requests.Session()
-_yahoo_session.headers.update({
-    **_HEADERS,
-    # Pre-accept Yahoo's consent cookie so we don't land on the consent wall
-    "Cookie": "GUC=AQEEAfEAZgBnAf0; eucs_cp=10",
-})
+_session       = make_session(_HTML_ACCEPT, extra=_BROWSER_EXTRA)
+_yahoo_session = make_session(
+    _HTML_ACCEPT,
+    extra={**_BROWSER_EXTRA, "Cookie": "GUC=AQEEAfEAZgBnAf0; eucs_cp=10"},
+)
 
 
 def _get_session(url: str) -> requests.Session:
     host = urlparse(url).hostname or ""
-    if "yahoo.com" in host:
-        return _yahoo_session
-    return _session
+    return _yahoo_session if "yahoo.com" in host else _session
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
