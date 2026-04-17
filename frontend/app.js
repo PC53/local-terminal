@@ -116,24 +116,63 @@ function highlightAC(items) {
 }
 
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────────────────
+
+// Commands that accept a ticker as their last argument.
+// For ADD the ticker is parts[2]; for all others it's parts[1].
+const TICKER_COMMANDS = new Set(['DES', 'CHART', 'NEWS', 'FIN', 'ADD']);
+const ADD_SUBTYPES    = new Set(['CHART', 'QUOTE', 'NEWS', 'WATCH']);
+
+let _tickerCache = [];   // [{s: "AAPL", n: "Apple Inc."}, ...]
+
+fetch('/tickers.json').then(r => r.json()).then(data => { _tickerCache = data; });
+
+let _acDebounce = null;
+
 function updateAutocomplete(raw) {
-  const val = raw.trim().toUpperCase();
-  const parts = val.split(/\s+/);
+  const val     = raw.trim().toUpperCase();
+  const parts   = val.split(/\s+/);
   const cmdPart = parts[0];
 
   if (!val) {
-    // Show all commands
-    const all = Object.entries(COMMANDS);
-    renderAC(all.map(([cmd, info]) => ({
-      fill: cmd + ' ',
-      cmd,
-      desc: info.usage + ' — ' + info.desc,
-    })));
+    renderACCommands(Object.entries(COMMANDS));
     return;
   }
 
-  // If first word is a full command and there's a space, hide autocomplete
+  // ── Ticker-search phase ────────────────────────────────────────────────────
+  // Conditions under which we should search for a ticker:
+  //   • Normal commands (DES, CHART, NEWS, FIN): user has typed "<CMD> <partial>"
+  //   • ADD command: user has typed "ADD <SUBTYPE> <partial>"
+  const isNormalTickerPhase =
+    TICKER_COMMANDS.has(cmdPart) &&
+    cmdPart !== 'ADD' &&
+    parts.length === 2 &&
+    parts[1].length > 0;
+
+  const isAddTickerPhase =
+    cmdPart === 'ADD' &&
+    parts.length === 3 &&
+    ADD_SUBTYPES.has(parts[1]) &&
+    parts[2].length > 0;
+
+  if (isNormalTickerPhase || isAddTickerPhase) {
+    const query  = isAddTickerPhase ? parts[2] : parts[1];
+    const prefix = isAddTickerPhase ? `${parts[0]} ${parts[1]} ` : `${parts[0]} `;
+    searchTickersLocal(query, prefix);
+    return;
+  }
+
+  // ── Command-completion phase ───────────────────────────────────────────────
+  // User is still typing the command name itself, OR has a complete command
+  // with no ticker yet (show usage hint).
+  if (COMMANDS[cmdPart] && parts.length === 1) {
+    // Exact command typed — show its usage as a single hint
+    const info = COMMANDS[cmdPart];
+    renderAC([{ fill: cmdPart + ' ', cmd: cmdPart, desc: info.usage + ' — ' + info.desc }]);
+    return;
+  }
+
   if (COMMANDS[cmdPart] && parts.length >= 2) {
+    // Full command + space but not yet in a ticker-search phase (e.g. ADD with no subtype yet)
     autocomplete.style.display = 'none';
     return;
   }
@@ -154,15 +193,42 @@ function updateAutocomplete(raw) {
   renderAC(matches);
 }
 
+function searchTickersLocal(query, prefix) {
+  if (!query) { autocomplete.style.display = 'none'; return; }
+  const q = query.toUpperCase();
+  const matches = _tickerCache
+    .filter(t => t.s.startsWith(q) || t.n.toUpperCase().includes(q))
+    .sort((a, b) => {
+      // Exact symbol matches first, then symbol-prefix matches, then name matches
+      const aExact = a.s === q, bExact = b.s === q;
+      const aSym   = a.s.startsWith(q), bSym = b.s.startsWith(q);
+      if (aExact !== bExact) return aExact ? -1 : 1;
+      if (aSym   !== bSym)   return aSym   ? -1 : 1;
+      return a.s.localeCompare(b.s);
+    })
+    .slice(0, 8)
+    .map(t => ({ fill: prefix + t.s + ' ', cmd: t.s, desc: t.n }));
+
+  renderAC(matches);
+}
+
+function renderACCommands(entries) {
+  renderAC(entries.map(([cmd, info]) => ({
+    fill: cmd + ' ',
+    cmd,
+    desc: info.usage + ' — ' + info.desc,
+  })));
+}
+
 function renderAC(items) {
   if (!items.length) {
     autocomplete.style.display = 'none';
     return;
   }
   autocomplete.innerHTML = items.map(item => `
-    <div class="ac-item" data-fill="${item.fill}">
-      <span class="ac-cmd">${item.cmd}</span>
-      <span class="ac-desc">${item.desc}</span>
+    <div class="ac-item" data-fill="${escapeAttr(item.fill)}">
+      <span class="ac-cmd">${escapeHtml(item.cmd)}</span>
+      <span class="ac-desc">${escapeHtml(item.desc)}</span>
     </div>
   `).join('');
   autocomplete.style.display = 'block';
@@ -171,8 +237,19 @@ function renderAC(items) {
       commandInput.value = el.dataset.fill;
       commandInput.focus();
       autocomplete.style.display = 'none';
+      state.acSelected = -1;
     });
   });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/"/g, '&quot;');
 }
 
 // ─── COMMAND DISPATCH ─────────────────────────────────────────────────────────
