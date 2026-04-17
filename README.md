@@ -1,6 +1,6 @@
 # Local Terminal
 
-A local Bloomberg / Godel Terminal clone that runs entirely on your machine. No cloud, no subscriptions, no API keys required to get started.
+A local Terminal that runs entirely on your machine. No cloud, no subscriptions, no API keys required to get started.
 
 ![Terminal Dashboard](https://img.shields.io/badge/status-active-brightgreen) ![Python](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-blue)
 
