@@ -11,7 +11,8 @@ Routers never need to change — the interface here is fixed.
 """
 import os
 import time
-from typing import Any, Optional
+from functools import wraps
+from typing import Any, Callable, Optional
 
 from services.providers import get_provider
 
@@ -45,68 +46,54 @@ def active_provider() -> str:
     return type(_provider).__name__
 
 
-# ── Public API — called by routers, never changes ─────────────────────────────
+def _cached_call(ttl_key: str, key_fn: Callable[..., str]):
+    """
+    Decorator: wrap a provider method with TTL caching.
 
+    - ttl_key: key into _provider.TTL (e.g. "quote", "history")
+    - key_fn:  given the same args as the wrapped fn, returns the cache key
+    """
+    def wrap(fn: Callable) -> Callable:
+        @wraps(fn)
+        def inner(*args, **kwargs):
+            key = key_fn(*args, **kwargs)
+            hit = _cached(key, _provider.TTL[ttl_key])
+            if hit is not None:
+                return hit
+            result = fn(*args, **kwargs)
+            _store(key, result)
+            return result
+        return inner
+    return wrap
+
+
+# ── Public API — called by routers ────────────────────────────────────────────
+
+@_cached_call("quote", lambda t: f"quote:{t.upper()}")
 def get_quote(ticker: str) -> dict:
-    ticker = ticker.upper()
-    key    = f"quote:{ticker}"
-    hit    = _cached(key, _provider.TTL["quote"])
-    if hit is not None:
-        return hit
-    result = _provider.get_quote(ticker)
-    _store(key, result)
-    return result
+    return _provider.get_quote(ticker.upper())
 
 
+@_cached_call("history", lambda t, period="1mo", interval="1d": f"history:{t.upper()}:{period}:{interval}")
 def get_history(ticker: str, period: str = "1mo", interval: str = "1d") -> list:
-    ticker = ticker.upper()
-    key    = f"history:{ticker}:{period}:{interval}"
-    hit    = _cached(key, _provider.TTL["history"])
-    if hit is not None:
-        return hit
-    result = _provider.get_history(ticker, period, interval)
-    _store(key, result)
-    return result
+    return _provider.get_history(ticker.upper(), period, interval)
 
 
+@_cached_call("news", lambda t: f"news:{t.upper()}")
 def get_news(ticker: str) -> list:
-    ticker = ticker.upper()
-    key    = f"news:{ticker}"
-    hit    = _cached(key, _provider.TTL["news"])
-    if hit is not None:
-        return hit
-    result = _provider.get_news(ticker)
-    _store(key, result)
-    return result
+    return _provider.get_news(ticker.upper())
 
 
+@_cached_call("financials", lambda t, period="annual": f"financials:{t.upper()}:{period}")
 def get_financials(ticker: str, period: str = "annual") -> dict:
-    ticker = ticker.upper()
-    key    = f"financials:{ticker}:{period}"
-    hit    = _cached(key, _provider.TTL["financials"])
-    if hit is not None:
-        return hit
-    result = _provider.get_financials(ticker, period)
-    _store(key, result)
-    return result
+    return _provider.get_financials(ticker.upper(), period)
 
 
+@_cached_call("options", lambda t: f"options:{t.upper()}")
 def get_options(ticker: str) -> dict:
-    ticker = ticker.upper()
-    key    = f"options:{ticker}"
-    hit    = _cached(key, _provider.TTL["options"])
-    if hit is not None:
-        return hit
-    result = _provider.get_options(ticker)
-    _store(key, result)
-    return result
+    return _provider.get_options(ticker.upper())
 
 
+@_cached_call("screen", lambda mode="active": f"screen:{mode}")
 def get_screen_tickers(mode: str = "active") -> list:
-    key = f"screen:{mode}"
-    hit = _cached(key, _provider.TTL["screen"])
-    if hit is not None:
-        return hit
-    result = _provider.get_screen(mode)
-    _store(key, result)
-    return result
+    return _provider.get_screen(mode)

@@ -1,12 +1,10 @@
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 
-from routers import quote, chart, news, financials, screen, article, search
+from routers import quote, chart, news, financials, screen, article
 
 app = FastAPI(title="Local Terminal", version="1.0.0")
 
@@ -25,42 +23,30 @@ app.add_middleware(
 )
 
 # API routers
-app.include_router(quote.router, prefix="/api")
-app.include_router(chart.router, prefix="/api")
-app.include_router(news.router, prefix="/api")
-app.include_router(financials.router, prefix="/api")
-app.include_router(screen.router, prefix="/api")
-app.include_router(article.router, prefix="/api")
-app.include_router(search.router, prefix="/api")
+for r in (quote, chart, news, financials, screen, article):
+    app.include_router(r.router, prefix="/api")
 
-# Serve frontend static files
+
+# ── Frontend static files ────────────────────────────────────────────────────
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
-
-# Mount static assets (css, js)
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
-
 _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
 
-
-@app.get("/tickers.json")
-async def serve_tickers():
-    return FileResponse(str(FRONTEND_DIR / "tickers.json"), media_type="application/json", headers=_NO_CACHE)
-
-
-@app.get("/style.css")
-async def serve_css():
-    return FileResponse(str(FRONTEND_DIR / "style.css"), media_type="text/css", headers=_NO_CACHE)
+_STATIC_FILES = {
+    "/":             ("index.html",   "text/html"),
+    "/app.js":       ("app.js",       "application/javascript"),
+    "/style.css":    ("style.css",    "text/css"),
+    "/tickers.json": ("tickers.json", "application/json"),
+}
 
 
-@app.get("/app.js")
-async def serve_js():
-    return FileResponse(str(FRONTEND_DIR / "app.js"), media_type="application/javascript", headers=_NO_CACHE)
+def _register_static(route: str, filename: str, media_type: str) -> None:
+    async def handler():
+        return FileResponse(str(FRONTEND_DIR / filename), media_type=media_type, headers=_NO_CACHE)
+    app.get(route)(handler)
 
 
-@app.get("/")
-async def serve_index():
-    return FileResponse(str(FRONTEND_DIR / "index.html"), headers=_NO_CACHE)
+for _route, (_file, _mime) in _STATIC_FILES.items():
+    _register_static(_route, _file, _mime)
 
 
 @app.get("/health")
