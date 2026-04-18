@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -33,7 +33,6 @@ _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "
 
 _STATIC_FILES = {
     "/":             ("index.html",   "text/html"),
-    "/app.js":       ("app.js",       "application/javascript"),
     "/style.css":    ("style.css",    "text/css"),
     "/tickers.json": ("tickers.json", "application/json"),
 }
@@ -47,6 +46,25 @@ def _register_static(route: str, filename: str, media_type: str) -> None:
 
 for _route, (_file, _mime) in _STATIC_FILES.items():
     _register_static(_route, _file, _mime)
+
+
+# ── ES module tree under /app/* ──────────────────────────────────────────────
+_MODULE_MIME = {
+    ".js":   "application/javascript",
+    ".css":  "text/css",
+    ".json": "application/json",
+    ".map":  "application/json",
+}
+
+
+@app.get("/app/{path:path}")
+async def serve_app_module(path: str):
+    full = (FRONTEND_DIR / "app" / path).resolve()
+    root = (FRONTEND_DIR / "app").resolve()
+    if not full.is_file() or not str(full).startswith(str(root)):
+        raise HTTPException(status_code=404)
+    mime = _MODULE_MIME.get(full.suffix, "application/octet-stream")
+    return FileResponse(str(full), media_type=mime, headers=_NO_CACHE)
 
 
 @app.get("/health")
