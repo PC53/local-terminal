@@ -1,43 +1,32 @@
 /* ═══════════════════════════════════════════════════════════
-   LOCAL TERMINAL — app.js
+   LOCAL TERMINAL — main.js  (ES module entry point)
    ═══════════════════════════════════════════════════════════ */
-
-// ─── STATE ────────────────────────────────────────────────────────────────────
-const state = {
-  currentCommand: null,
-  currentTicker: null,
-  history: [],
-  historyIndex: -1,
-  acSelected: -1,
-};
-
-// Dashboard state — declared here to avoid TDZ errors in hoisted functions
-let _cards      = [];
-let _cardCharts = {};
-let _cardTimers = {};
+import { state, dashboard } from './state.js';
+import {
+  commandWrapper, commandInput, contentPanel, dashboardView,
+  canvas, articleReader, autocomplete,
+} from './dom.js';
+import {
+  fmt, fmtLarge, fmtVol, fmtPct, colorClass,
+  escapeHtml, escapeAttr, apiFetch, timeAgo,
+} from './utils.js';
+import {
+  setStatus, showDashboard, showContent, showArticleReader,
+  showLoading, showError,
+} from './views.js';
+import { createPriceChart } from './chart-builder.js';
 
 // ─── COMMANDS ─────────────────────────────────────────────────────────────────
 const COMMANDS = {
-  'DES':   { desc: 'Company overview & key statistics',       usage: 'DES <TICKER>',                    fn: renderDES },
-  'CHART': { desc: 'Interactive price chart',                 usage: 'CHART <TICKER>',                  fn: renderChart },
-  'NEWS':  { desc: 'Latest news with sentiment analysis',     usage: 'NEWS <TICKER>',                   fn: renderNews },
-  'FIN':   { desc: 'Financial statements',                    usage: 'FIN <TICKER>',                    fn: renderFinancials },
-  'MOST':  { desc: 'Most active, top gainers & losers',       usage: 'MOST',                            fn: renderMost },
+  'DES':   { desc: 'Company overview & key statistics',       usage: 'DES <TICKER>',                     fn: renderDES },
+  'CHART': { desc: 'Interactive price chart',                 usage: 'CHART <TICKER>',                   fn: renderChart },
+  'NEWS':  { desc: 'Latest news with sentiment analysis',     usage: 'NEWS <TICKER>',                    fn: renderNews },
+  'FIN':   { desc: 'Financial statements',                    usage: 'FIN <TICKER>',                     fn: renderFinancials },
+  'MOST':  { desc: 'Most active, top gainers & losers',       usage: 'MOST',                             fn: renderMost },
   'ADD':   { desc: 'Add a widget card to the dashboard',      usage: 'ADD CHART|QUOTE|NEWS|WATCH <TKR>', fn: renderAddCmd },
-  'DASH':  { desc: 'Return to the dashboard canvas',          usage: 'DASH',                            fn: showDashboard },
-  'HELP':  { desc: 'Show all available commands',             usage: 'HELP',                            fn: renderHelp },
+  'DASH':  { desc: 'Return to the dashboard canvas',          usage: 'DASH',                             fn: showDashboard },
+  'HELP':  { desc: 'Show all available commands',             usage: 'HELP',                             fn: renderHelp },
 };
-
-// ─── DOM REFS ─────────────────────────────────────────────────────────────────
-const commandWrapper  = document.getElementById('command-input-wrapper');
-const commandInput    = document.getElementById('command-input');
-const contentPanel    = document.getElementById('content-panel');
-const dashboardView   = document.getElementById('dashboard-view');
-const canvas          = document.getElementById('canvas');
-const articleReader   = document.getElementById('article-reader');
-const autocomplete    = document.getElementById('autocomplete');
-const statusMsg       = document.getElementById('status-msg');
-const marketIndices   = document.getElementById('market-indices');
 
 // ─── COMMAND BAR ──────────────────────────────────────────────────────────────
 function openCommandBar() {
@@ -126,8 +115,6 @@ let _tickerCache = [];   // [{s: "AAPL", n: "Apple Inc."}, ...]
 
 fetch('/tickers.json').then(r => r.json()).then(data => { _tickerCache = data; });
 
-let _acDebounce = null;
-
 function updateAutocomplete(raw) {
   const val     = raw.trim().toUpperCase();
   const parts   = val.split(/\s+/);
@@ -139,9 +126,6 @@ function updateAutocomplete(raw) {
   }
 
   // ── Ticker-search phase ────────────────────────────────────────────────────
-  // Conditions under which we should search for a ticker:
-  //   • Normal commands (DES, CHART, NEWS, FIN): user has typed "<CMD> <partial>"
-  //   • ADD command: user has typed "ADD <SUBTYPE> <partial>"
   const isNormalTickerPhase =
     TICKER_COMMANDS.has(cmdPart) &&
     cmdPart !== 'ADD' &&
@@ -162,17 +146,13 @@ function updateAutocomplete(raw) {
   }
 
   // ── Command-completion phase ───────────────────────────────────────────────
-  // User is still typing the command name itself, OR has a complete command
-  // with no ticker yet (show usage hint).
   if (COMMANDS[cmdPart] && parts.length === 1) {
-    // Exact command typed — show its usage as a single hint
     const info = COMMANDS[cmdPart];
     renderAC([{ fill: cmdPart + ' ', cmd: cmdPart, desc: info.usage + ' — ' + info.desc }]);
     return;
   }
 
   if (COMMANDS[cmdPart] && parts.length >= 2) {
-    // Full command + space but not yet in a ticker-search phase (e.g. ADD with no subtype yet)
     autocomplete.style.display = 'none';
     return;
   }
@@ -199,7 +179,6 @@ function searchTickersLocal(query, prefix) {
   const matches = _tickerCache
     .filter(t => t.s.startsWith(q) || t.n.toUpperCase().includes(q))
     .sort((a, b) => {
-      // Exact symbol matches first, then symbol-prefix matches, then name matches
       const aExact = a.s === q, bExact = b.s === q;
       const aSym   = a.s.startsWith(q), bSym = b.s.startsWith(q);
       if (aExact !== bExact) return aExact ? -1 : 1;
@@ -242,16 +221,6 @@ function renderAC(items) {
   });
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function escapeAttr(str) {
-  return String(str).replace(/"/g, '&quot;');
-}
-
 // ─── COMMAND DISPATCH ─────────────────────────────────────────────────────────
 function executeCommand(input) {
   const trimmed = input.trim().toUpperCase();
@@ -269,7 +238,6 @@ function executeCommand(input) {
   setStatus(`Running: ${trimmed}`);
 
   if (cmd === 'ADD') {
-    // ADD CHART AAPL / ADD QUOTE TSLA / ADD NEWS / ADD WATCH
     const cardType   = (parts[1] || 'quote').toLowerCase();
     const cardTicker = parts[2] || parts[1] || '';
     renderAddCmd(cardType, cardTicker);
@@ -281,7 +249,6 @@ function executeCommand(input) {
     state.currentTicker = ticker;
     COMMANDS[cmd].fn(ticker);
   } else {
-    // Try as ticker with DES
     if (cmd.length <= 6 && /^[A-Z0-9.\-^]+$/.test(cmd)) {
       state.currentCommand = 'DES';
       state.currentTicker = cmd;
@@ -292,87 +259,9 @@ function executeCommand(input) {
   }
 }
 
-// Expose for onclick in HTML
-window.runCommand = (cmd) => {
+function runCommand(cmd) {
   commandInput.value = cmd;
   executeCommand(cmd);
-};
-
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
-function setStatus(msg) {
-  statusMsg.textContent = msg;
-}
-
-function fmt(n, decimals = 2) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  return Number(n).toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
-
-function fmtLarge(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  const abs = Math.abs(n);
-  const sign = n < 0 ? '-' : '';
-  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`;
-  if (abs >= 1e9)  return `${sign}$${(abs / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6)  return `${sign}$${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3)  return `${sign}$${(abs / 1e3).toFixed(2)}K`;
-  return `${sign}$${abs.toFixed(2)}`;
-}
-
-function fmtVol(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  const abs = Math.abs(n);
-  if (abs >= 1e9)  return `${(abs / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6)  return `${(abs / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3)  return `${(abs / 1e3).toFixed(2)}K`;
-  return String(abs);
-}
-
-function fmtPct(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  return `${n > 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
-}
-
-function colorClass(n) {
-  if (n === null || n === undefined || isNaN(n)) return '';
-  return n > 0 ? 'positive' : n < 0 ? 'negative' : '';
-}
-
-function showLoading(msg = 'LOADING') {
-  showContent();
-  contentPanel.innerHTML = `<div class="loading">${msg}</div>`;
-}
-
-function showError(msg) {
-  showContent();
-  contentPanel.innerHTML = `<div class="error">ERROR: ${msg}</div>`;
-  setStatus('Error');
-}
-
-async function apiFetch(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    const diff = Date.now() - d.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  } catch { return dateStr; }
 }
 
 // ─── DES — COMPANY OVERVIEW ───────────────────────────────────────────────────
@@ -495,7 +384,6 @@ const TIMEFRAMES = [
 async function renderChart(ticker, activePeriod = '1mo', activeInterval = '1d') {
   if (!ticker) { showError('Usage: CHART <TICKER>  e.g. CHART TSLA'); return; }
 
-  // Destroy old chart
   if (_chartInstance) { try { _chartInstance.remove(); } catch (_) {} _chartInstance = null; }
 
   showLoading(`LOADING CHART ${ticker}`);
@@ -524,63 +412,11 @@ async function renderChart(ticker, activePeriod = '1mo', activeInterval = '1d') 
     `;
 
     const container = document.getElementById('chart-container');
-    const chart = LightweightCharts.createChart(container, {
-      width: container.clientWidth,
-      height: 420,
-      layout: {
-        background: { type: 'solid', color: '#0a0a0a' },
-        textColor: '#666666',
-      },
-      grid: {
-        vertLines: { color: '#1a1a1a' },
-        horzLines: { color: '#1a1a1a' },
-      },
-      crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal,
-        vertLine: { color: '#33E29A', labelBackgroundColor: '#33E29A' },
-        horzLine: { color: '#33E29A', labelBackgroundColor: '#33E29A' },
-      },
-      rightPriceScale: {
-        borderColor: '#1e1e1e',
-        textColor: '#666',
-      },
-      timeScale: {
-        borderColor: '#1e1e1e',
-        timeVisible: true,
-        secondsVisible: false,
-      },
+    const { chart, candleSeries, volSeries } = createPriceChart({
+      container, data, theme: 'full',
+      width: container.clientWidth, height: 420,
     });
-
     _chartInstance = chart;
-
-    // Candlestick series (v4+ API)
-    const candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
-      upColor:        '#33E29A',
-      downColor:      '#ff4455',
-      borderUpColor:  '#33E29A',
-      borderDownColor:'#ff4455',
-      wickUpColor:    '#33E29A',
-      wickDownColor:  '#ff4455',
-    });
-    candleSeries.setData(data);
-
-    // Volume histogram (v4+ API)
-    const volSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-      color: '#1e1e1e',
-    });
-    chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-    const volData = data.map(d => ({
-      time: d.time,
-      value: d.volume,
-      color: d.close >= d.open ? 'rgba(51,226,154,0.3)' : 'rgba(255,68,85,0.3)',
-    }));
-    volSeries.setData(volData);
-
-    chart.timeScale().fitContent();
 
     // Responsive resize
     const ro = new ResizeObserver(() => {
@@ -656,7 +492,6 @@ async function renderNews(ticker) {
       `;
     }).join('');
 
-    // Sentiment summary
     const counts = { positive: 0, neutral: 0, negative: 0 };
     articles.forEach(a => { if (a.sentiment) counts[a.sentiment]++; });
     const total = articles.length;
@@ -960,15 +795,13 @@ setInterval(updateMarketStatus, 30000);
 updateMarketStatus();
 
 // ─── ARTICLE READER ───────────────────────────────────────────────────────────
-
-// Track where to return when user presses Back
-let _articleReturnFn = null;
+// Tracked on `window` so inline onclick strings can assign to it.
+window._articleReturnFn = null;
 
 async function openArticle(url, title, sentiment, source, publishedAt) {
   if (!url) return;
 
-  // Remember what to go back to
-  _articleReturnFn = _articleReturnFn || (() => showDashboard());
+  window._articleReturnFn = window._articleReturnFn || (() => showDashboard());
 
   showArticleReader();
   setStatus(`Loading article…`);
@@ -977,7 +810,6 @@ async function openArticle(url, title, sentiment, source, publishedAt) {
                   : sentiment === 'negative' ? 'negative' : 'neutral';
   const sentLabel = sentiment || 'neutral';
 
-  // Show skeleton while fetching
   articleReader.innerHTML = `
     <div class="ar-topbar">
       <button class="ar-back" onclick="closeArticle()">← BACK</button>
@@ -1042,55 +874,21 @@ async function openArticle(url, title, sentiment, source, publishedAt) {
 function closeArticle() {
   articleReader.classList.remove('visible');
   articleReader.style.display = 'none';
-  // Return to wherever we came from
-  if (_articleReturnFn) {
-    _articleReturnFn();
-    _articleReturnFn = null;
+  if (window._articleReturnFn) {
+    window._articleReturnFn();
+    window._articleReturnFn = null;
   } else {
     showDashboard();
   }
 }
 
-// Expose for inline onclick handlers
-window.openArticle  = openArticle;
-window.closeArticle = closeArticle;
-
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-initDashboard();
-setStatus("Dashboard — Press \` to enter a command");
-
 /* ═══════════════════════════════════════════════════════════════════════════
    DASHBOARD ENGINE
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// (_cards, _cardCharts, _cardTimers declared at top of file)
-
-// ─── VIEW SWITCHER ───────────────────────────────────────────────────────────
-function showDashboard() {
-  dashboardView.style.display = 'block';
-  contentPanel.style.display  = 'none';
-  articleReader.classList.remove('visible');
-  articleReader.style.display = 'none';
-  setStatus("Dashboard — Press \` to enter a command");
-}
-
-function showContent() {
-  dashboardView.style.display = 'none';
-  articleReader.classList.remove('visible');
-  articleReader.style.display = 'none';
-  contentPanel.style.display  = 'block';
-}
-
-function showArticleReader() {
-  dashboardView.style.display = 'none';
-  contentPanel.style.display  = 'none';
-  articleReader.style.display = 'flex';
-  articleReader.classList.add('visible');
-}
-
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 function saveCards() {
-  localStorage.setItem('terminal_cards', JSON.stringify(_cards));
+  localStorage.setItem('terminal_cards', JSON.stringify(dashboard.cards));
 }
 
 function defaultCards() {
@@ -1106,26 +904,23 @@ function defaultCards() {
 function initDashboard() {
   try {
     const saved = localStorage.getItem('terminal_cards');
-    _cards = saved ? JSON.parse(saved) : defaultCards();
+    dashboard.cards = saved ? JSON.parse(saved) : defaultCards();
   } catch (_) {
-    _cards = defaultCards();
+    dashboard.cards = defaultCards();
   }
   renderDashboard();
 }
 
-// ─── RENDER ALL CARDS ─────────────────────────────────────────────────────────
 function renderDashboard() {
-  // Teardown existing timers & charts
-  Object.values(_cardTimers).forEach(t => clearInterval(t));
-  Object.values(_cardCharts).forEach(ch => { try { ch.remove(); } catch (_) {} });
-  _cardTimers = {};
-  _cardCharts = {};
+  Object.values(dashboard.timers).forEach(t => clearInterval(t));
+  Object.values(dashboard.charts).forEach(ch => { try { ch.remove(); } catch (_) {} });
+  dashboard.timers = {};
+  dashboard.charts = {};
   canvas.innerHTML = '';
 
-  _cards.forEach(card => mountCard(card, false));
+  dashboard.cards.forEach(card => mountCard(card, false));
 }
 
-// ─── MOUNT A SINGLE CARD ──────────────────────────────────────────────────────
 function mountCard(card, animate = true) {
   const el = document.createElement('div');
   el.className = 'card' + (animate ? ' card-new' : '');
@@ -1207,10 +1002,9 @@ function initResize(el, card) {
       card.h = Math.max(120, sh + e.clientY - sy);
       el.style.width  = card.w + 'px';
       el.style.height = card.h + 'px';
-      // Notify chart of new dimensions
-      if (_cardCharts[card.id]) {
+      if (dashboard.charts[card.id]) {
         const body = document.getElementById(`body_${card.id}`);
-        if (body) _cardCharts[card.id].applyOptions({ width: body.clientWidth, height: body.clientHeight });
+        if (body) dashboard.charts[card.id].applyOptions({ width: body.clientWidth, height: body.clientHeight });
       }
     }
     function onUp() {
@@ -1238,28 +1032,28 @@ async function loadCardContent(card) {
 }
 
 function refreshCard(id) {
-  const card = _cards.find(c => c.id === id);
+  const card = dashboard.cards.find(c => c.id === id);
   if (!card) return;
-  if (_cardCharts[id]) { try { _cardCharts[id].remove(); } catch (_) {} delete _cardCharts[id]; }
+  if (dashboard.charts[id]) { try { dashboard.charts[id].remove(); } catch (_) {} delete dashboard.charts[id]; }
   const body = document.getElementById(`body_${id}`);
   if (body) body.innerHTML = '<div class="card-loading">LOADING</div>';
   loadCardContent(card);
 }
 
 function removeCard(id) {
-  if (_cardTimers[id]) { clearInterval(_cardTimers[id]); delete _cardTimers[id]; }
-  if (_cardCharts[id]) { try { _cardCharts[id].remove(); } catch (_) {} delete _cardCharts[id]; }
+  if (dashboard.timers[id]) { clearInterval(dashboard.timers[id]); delete dashboard.timers[id]; }
+  if (dashboard.charts[id]) { try { dashboard.charts[id].remove(); } catch (_) {} delete dashboard.charts[id]; }
   const el = document.getElementById(`card_${id}`);
   if (el) el.remove();
-  _cards = _cards.filter(c => c.id !== id);
+  dashboard.cards = dashboard.cards.filter(c => c.id !== id);
   saveCards();
 }
 
 function initAutoRefresh(card) {
   const ms = { chart: 90000, quote: 15000, news: 120000, watch: 20000 }[card.type] || 60000;
-  _cardTimers[card.id] = setInterval(() => {
+  dashboard.timers[card.id] = setInterval(() => {
     if (!document.getElementById(`card_${card.id}`)) {
-      clearInterval(_cardTimers[card.id]);
+      clearInterval(dashboard.timers[card.id]);
       return;
     }
     // Charts refresh on demand only; others refresh silently
@@ -1277,49 +1071,17 @@ async function loadChartCard(card, body) {
   body.innerHTML = `<div data-cc style="width:100%;height:100%;"></div>`;
   const container = body.querySelector('[data-cc]');
 
-  // Destroy previous instance if any
-  if (_cardCharts[card.id]) { try { _cardCharts[card.id].remove(); } catch (_) {} }
+  if (dashboard.charts[card.id]) { try { dashboard.charts[card.id].remove(); } catch (_) {} }
 
-  const chart = LightweightCharts.createChart(container, {
-    width:  body.clientWidth,
-    height: body.clientHeight,
-    layout: { background: { type: 'solid', color: '#0d0d0d' }, textColor: '#444' },
-    grid:   { vertLines: { color: '#161616' }, horzLines: { color: '#161616' } },
-    crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal,
-      vertLine: { color: '#33E29A', labelBackgroundColor: '#33E29A' },
-      horzLine: { color: '#33E29A', labelBackgroundColor: '#33E29A' },
-    },
-    rightPriceScale: { borderColor: '#1e1e1e', textColor: '#444' },
-    timeScale: { borderColor: '#1e1e1e', timeVisible: true },
-    handleScroll: { mouseWheel: true },
-    handleScale:  { mouseWheel: true },
+  const { chart } = createPriceChart({
+    container, data, theme: 'card',
+    width: body.clientWidth, height: body.clientHeight,
   });
+  dashboard.charts[card.id] = chart;
 
-  const candles = chart.addSeries(LightweightCharts.CandlestickSeries, {
-    upColor: '#33E29A', downColor: '#ff4455',
-    borderUpColor: '#33E29A', borderDownColor: '#ff4455',
-    wickUpColor: '#33E29A', wickDownColor: '#ff4455',
-  });
-  candles.setData(data);
-
-  const volSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
-    priceFormat: { type: 'volume' },
-    priceScaleId: 'vol',
-  });
-  chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-  volSeries.setData(data.map(d => ({
-    time: d.time, value: d.volume,
-    color: d.close >= d.open ? 'rgba(51,226,154,0.25)' : 'rgba(255,68,85,0.25)',
-  })));
-
-  chart.timeScale().fitContent();
-  _cardCharts[card.id] = chart;
-
-  // Auto-size when card body changes
   new ResizeObserver(() => {
-    if (_cardCharts[card.id]) {
-      _cardCharts[card.id].applyOptions({ width: body.clientWidth, height: body.clientHeight });
+    if (dashboard.charts[card.id]) {
+      dashboard.charts[card.id].applyOptions({ width: body.clientWidth, height: body.clientHeight });
     }
   }).observe(body);
 }
@@ -1393,14 +1155,13 @@ async function loadWatchCard(card, body) {
 
 // ─── ADD COMMAND ──────────────────────────────────────────────────────────────
 function renderAddCmd(typeOrRaw, ticker) {
-  // Normalise: "ADD CHART AAPL" arrives as typeOrRaw='chart', ticker='AAPL'
+  // "ADD CHART AAPL" arrives as typeOrRaw='chart', ticker='AAPL'
   // "ADD AAPL" (no type) — treat as quote
   const TYPES = ['chart', 'quote', 'news', 'watch'];
   let type   = (typeOrRaw || '').toLowerCase();
   let symbol = (ticker || '').toUpperCase();
 
   if (!TYPES.includes(type)) {
-    // typeOrRaw might actually be a ticker symbol
     symbol = type.toUpperCase();
     type   = 'quote';
   }
@@ -1415,14 +1176,32 @@ function renderAddCmd(typeOrRaw, ticker) {
   const { w, h } = dims[type] || { w: 300, h: 250 };
 
   // Stagger new cards so they don't pile directly on top of each other
-  const n = _cards.length;
+  const n = dashboard.cards.length;
   const x = 80 + (n % 4) * 40;
   const y = 80 + (n % 4) * 40;
 
   const card = { id, type, ticker: symbol, x, y, w, h };
-  _cards.push(card);
+  dashboard.cards.push(card);
   saveCards();
   showDashboard();
   mountCard(card, true);
   setStatus(`Added ${type.toUpperCase()}${symbol ? ' · ' + symbol : ''} card to dashboard`);
 }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+initDashboard();
+setStatus("Dashboard — Press ` to enter a command");
+
+// ─── GLOBAL EXPOSURE FOR INLINE onclick HANDLERS ──────────────────────────────
+// Phase 2 keeps inline `onclick=` working by putting these handlers on window.
+// Phase 3 will move these to event delegation and delete this block.
+window.runCommand       = runCommand;
+window.showDashboard    = showDashboard;
+window.openArticle      = openArticle;
+window.closeArticle     = closeArticle;
+window.renderChart      = renderChart;
+window.renderNews       = renderNews;
+window.renderFinancials = renderFinancials;
+window.renderMost       = renderMost;
+window.refreshCard      = refreshCard;
+window.removeCard       = removeCard;
