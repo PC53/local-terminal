@@ -73,8 +73,8 @@ export function mountCard(card, animate = true) {
       <span class="card-type-label">${typeLabel}</span>
       ${card.ticker ? `<span class="card-ticker-label">${card.ticker}</span>` : '<span class="card-ticker-label">WATCHLIST</span>'}
       <span class="card-actions">
-        <span class="card-btn card-refresh" title="Refresh" onclick="refreshCard('${card.id}')">↻</span>
-        <span class="card-btn card-close"   title="Remove"  onclick="removeCard('${card.id}')">×</span>
+        <span class="card-btn card-refresh" title="Refresh" data-action="card-refresh" data-card="${card.id}">↻</span>
+        <span class="card-btn card-close"   title="Remove"  data-action="card-remove"  data-card="${card.id}">×</span>
       </span>
     </div>
     <div class="card-body" id="body_${card.id}">

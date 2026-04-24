@@ -34,7 +34,10 @@ export default async function renderChart(ticker, activePeriod = '1mo', activeIn
 
     const tfButtons = TIMEFRAMES.map(tf => `
       <button class="tf-btn ${tf.period === activePeriod ? 'active' : ''}"
-              onclick="renderChart('${ticker}','${tf.period}','${tf.interval}')">
+              data-action="chart-timeframe"
+              data-ticker="${ticker}"
+              data-period="${tf.period}"
+              data-interval="${tf.interval}">
         ${tf.label}
       </button>
     `).join('');

@@ -1,7 +1,8 @@
-import { apiFetch } from '../../utils.js';
+import { apiFetch, escapeAttr } from '../../utils.js';
 
-// Inline onclick strings reach showDashboard/openArticle/_articleReturnFn
-// via the window.* shim set up in main.js (removed in Phase 6).
+// Article links carry their payload as data-* attrs; the delegated
+// click handler in actions.js opens the reader (default onReturn =
+// back to dashboard).
 export default async function loadNewsCard(card, body) {
   const articles = await apiFetch(`/api/news/${card.ticker || 'SPY'}`);
   if (!articles || !articles.length) {
@@ -12,10 +13,14 @@ export default async function loadNewsCard(card, body) {
   const items = articles.slice(0, 15).map(a => {
     const dot = a.sentiment === 'positive' ? 'dot-pos'
               : a.sentiment === 'negative' ? 'dot-neg' : 'dot-neu';
-    const escapedUrl   = (a.link  || '').replace(/'/g, "\\'");
-    const escapedTitle = (a.title || 'Untitled').replace(/'/g, "\\'");
     const titleHtml = a.link
-      ? `<a href="#" onclick="event.preventDefault();_articleReturnFn=()=>showDashboard();openArticle('${escapedUrl}','${escapedTitle}','${a.sentiment || ''}','${a.publisher || ''}','${a.published_at || ''}')">${a.title || 'Untitled'}</a>`
+      ? `<a href="#"
+            data-action="open-article"
+            data-url="${escapeAttr(a.link)}"
+            data-title="${escapeAttr(a.title || 'Untitled')}"
+            data-sentiment="${a.sentiment || ''}"
+            data-publisher="${escapeAttr(a.publisher || '')}"
+            data-published-at="${a.published_at || ''}">${a.title || 'Untitled'}</a>`
       : (a.title || 'Untitled');
     return `
       <div class="ncard-item">

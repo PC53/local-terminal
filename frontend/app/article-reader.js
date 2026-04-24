@@ -1,20 +1,17 @@
 // Article reader overlay: fetches an article preview through the backend
-// and renders it inside #article-reader.
-//
-// `window._articleReturnFn` is the slot inline onclick strings assign to
-// before calling openArticle (see commands/news.js and dashboard/cards/
-// news.js). Phase 6 switches those handlers to event delegation and this
-// becomes a plain module-scoped variable.
+// and renders it inside #article-reader. Called from the delegated
+// click handler (see actions.js) which passes the `onReturn` function
+// to run when the user clicks BACK.
 import { articleReader } from './dom.js';
 import { apiFetch, timeAgo } from './utils.js';
 import { setStatus, showDashboard, showArticleReader } from './views.js';
 
-window._articleReturnFn = null;
+let _returnFn = null;
 
-export async function openArticle(url, title, sentiment, source, publishedAt) {
+export async function openArticle({ url, title, sentiment, source, publishedAt, onReturn }) {
   if (!url) return;
 
-  window._articleReturnFn = window._articleReturnFn || (() => showDashboard());
+  _returnFn = onReturn || (() => showDashboard());
 
   showArticleReader();
   setStatus(`Loading article…`);
@@ -25,7 +22,7 @@ export async function openArticle(url, title, sentiment, source, publishedAt) {
 
   articleReader.innerHTML = `
     <div class="ar-topbar">
-      <button class="ar-back" onclick="closeArticle()">← BACK</button>
+      <button class="ar-back" data-action="close-article">← BACK</button>
       ${source ? `<span class="ar-source-badge">${source}</span>` : ''}
       <span class="ar-sentiment ${sentClass}">${sentLabel}</span>
       ${publishedAt ? `<span class="dimmed" style="font-size:10px">${timeAgo(publishedAt)}</span>` : ''}
@@ -60,7 +57,7 @@ export async function openArticle(url, title, sentiment, source, publishedAt) {
 
     articleReader.innerHTML = `
       <div class="ar-topbar">
-        <button class="ar-back" onclick="closeArticle()">← BACK</button>
+        <button class="ar-back" data-action="close-article">← BACK</button>
         ${siteName ? `<span class="ar-source-badge">${siteName}</span>` : ''}
         <span class="ar-sentiment ${sentClass}">${sentLabel}</span>
         ${publishedAt ? `<span class="dimmed" style="font-size:10px">${timeAgo(publishedAt)}</span>` : ''}
@@ -87,9 +84,10 @@ export async function openArticle(url, title, sentiment, source, publishedAt) {
 export function closeArticle() {
   articleReader.classList.remove('visible');
   articleReader.style.display = 'none';
-  if (window._articleReturnFn) {
-    window._articleReturnFn();
-    window._articleReturnFn = null;
+  if (_returnFn) {
+    const fn = _returnFn;
+    _returnFn = null;
+    fn();
   } else {
     showDashboard();
   }

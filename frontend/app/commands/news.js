@@ -1,5 +1,5 @@
 import { contentPanel } from '../dom.js';
-import { apiFetch, timeAgo } from '../utils.js';
+import { apiFetch, timeAgo, escapeAttr } from '../utils.js';
 import { setStatus, showLoading, showError } from '../views.js';
 
 export const meta = {
@@ -29,11 +29,15 @@ export default async function renderNews(ticker) {
                       : a.sentiment === 'negative' ? 'badge-negative'
                       : 'badge-neutral';
       const timeStr = a.published_at ? timeAgo(a.published_at) : '';
-      const escapedUrl   = (a.link  || '').replace(/'/g, "\\'");
-      const escapedTitle = (a.title || 'Untitled').replace(/'/g, "\\'");
-      // Inline onclick sets _articleReturnFn + calls openArticle — both live on window (Phase 2 shim).
       const titleHtml = a.link
-        ? `<a href="#" onclick="event.preventDefault();_articleReturnFn=()=>{renderNews('${ticker}')};openArticle('${escapedUrl}','${escapedTitle}','${a.sentiment || ''}','${a.publisher || ''}','${a.published_at || ''}')">${a.title || 'Untitled'}</a>`
+        ? `<a href="#"
+              data-action="open-article"
+              data-return="news:${ticker}"
+              data-url="${escapeAttr(a.link)}"
+              data-title="${escapeAttr(a.title || 'Untitled')}"
+              data-sentiment="${a.sentiment || ''}"
+              data-publisher="${escapeAttr(a.publisher || '')}"
+              data-published-at="${a.published_at || ''}">${a.title || 'Untitled'}</a>`
         : (a.title || 'Untitled');
 
       return `

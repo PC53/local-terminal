@@ -52,27 +52,27 @@ export default function renderHelp() {
 
       <div class="section-title" style="margin-top:24px;margin-bottom:12px;">Examples</div>
       <div class="help-grid">
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('DES AAPL')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="DES AAPL">
           <span class="help-cmd accent">DES AAPL</span>
           <span class="help-desc">Apple Inc. overview</span>
         </div>
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('CHART NVDA')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="CHART NVDA">
           <span class="help-cmd accent">CHART NVDA</span>
           <span class="help-desc">NVIDIA price chart</span>
         </div>
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('NEWS TSLA')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="NEWS TSLA">
           <span class="help-cmd accent">NEWS TSLA</span>
           <span class="help-desc">Tesla latest news</span>
         </div>
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('FIN MSFT')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="FIN MSFT">
           <span class="help-cmd accent">FIN MSFT</span>
           <span class="help-desc">Microsoft financials</span>
         </div>
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('MOST')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="MOST">
           <span class="help-cmd accent">MOST</span>
           <span class="help-desc">Market movers</span>
         </div>
-        <div class="help-row" style="cursor:pointer" onclick="runCommand('DES BTC-USD')">
+        <div class="help-row" style="cursor:pointer" data-action="run-command" data-cmd="DES BTC-USD">
           <span class="help-cmd accent">DES BTC-USD</span>
           <span class="help-desc">Bitcoin price</span>
         </div>

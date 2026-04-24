@@ -20,13 +20,15 @@ export default async function renderFinancials(ticker, type = 'income', period =
 
     const tabHTML = (lbl, t) => `
       <button class="tab-btn ${type === t ? 'active' : ''}"
-              onclick="renderFinancials('${ticker}','${t}','${period}')">
+              data-action="fin-tab"
+              data-ticker="${ticker}" data-type="${t}" data-period="${period}">
         ${lbl}
       </button>`;
 
     const periodHTML = (lbl, p) => `
       <button class="tab-btn ${period === p ? 'active' : ''}"
-              onclick="renderFinancials('${ticker}','${type}','${p}')">
+              data-action="fin-tab"
+              data-ticker="${ticker}" data-type="${type}" data-period="${p}">
         ${lbl}
       </button>`;
 
