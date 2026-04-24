@@ -19,7 +19,7 @@ export default async function renderMost(_, tab = 'active') {
 
     const tabHTML = (lbl, t) => `
       <button class="tab-btn ${tab === t ? 'active' : ''}"
-              onclick="renderMost(null,'${t}')">
+              data-action="most-tab" data-tab="${t}">
         ${lbl}
       </button>`;
 
@@ -27,7 +27,7 @@ export default async function renderMost(_, tab = 'active') {
       const cc = colorClass(s.change_pct);
       const sign = s.change > 0 ? '+' : '';
       return `
-        <tr onclick="runCommand('DES ${s.symbol}')" style="cursor:pointer;">
+        <tr data-action="run-command" data-cmd="DES ${s.symbol}" style="cursor:pointer;">
           <td class="accent" style="font-weight:600">${s.symbol}</td>
           <td class="dimmed" style="font-size:11px">${s.name || ''}</td>
           <td>${fmt(s.price)}</td>

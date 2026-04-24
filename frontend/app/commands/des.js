@@ -97,9 +97,9 @@ export default async function renderDES(ticker) {
       </div>` : ''}
 
       <div class="panel-section" style="display:flex;gap:12px;flex-wrap:wrap;">
-        <button class="tf-btn" onclick="runCommand('CHART ${data.symbol}')">CHART ${data.symbol}</button>
-        <button class="tf-btn" onclick="runCommand('NEWS ${data.symbol}')">NEWS ${data.symbol}</button>
-        <button class="tf-btn" onclick="runCommand('FIN ${data.symbol}')">FIN ${data.symbol}</button>
+        <button class="tf-btn" data-action="run-command" data-cmd="CHART ${data.symbol}">CHART ${data.symbol}</button>
+        <button class="tf-btn" data-action="run-command" data-cmd="NEWS ${data.symbol}">NEWS ${data.symbol}</button>
+        <button class="tf-btn" data-action="run-command" data-cmd="FIN ${data.symbol}">FIN ${data.symbol}</button>
       </div>
     `;
 

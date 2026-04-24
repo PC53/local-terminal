@@ -1,18 +1,13 @@
 /* ═══════════════════════════════════════════════════════════
    LOCAL TERMINAL — main.js  (ES module entry point)
 
-   Remaining here (post-phase-5):
-   - Clock + market-status ticker
-   - Bootstrap: wire command-bar + initDashboard
-   - window.* shim for inline onclick= handlers           → Phase 6
+   Pure bootstrap: clock, market status, and wire up the
+   command bar, dashboard, and delegated click handler.
    ═══════════════════════════════════════════════════════════ */
-import { setStatus, showDashboard } from './views.js';
-import { bindKeyboard, runCommand } from './command-bar.js';
-import { initDashboard, refreshCard, removeCard } from './dashboard/engine.js';
-import { openArticle, closeArticle } from './article-reader.js';
-import {
-  renderChart, renderNews, renderFinancials, renderMost,
-} from './commands/registry.js';
+import { setStatus } from './views.js';
+import { bindKeyboard } from './command-bar.js';
+import { initDashboard } from './dashboard/engine.js';
+import { bindActions } from './actions.js';
 
 // ─── CLOCK ────────────────────────────────────────────────────────────────────
 function updateClock() {
@@ -73,18 +68,6 @@ updateMarketStatus();
 
 // ─── BOOTSTRAP ────────────────────────────────────────────────────────────────
 bindKeyboard();
+bindActions();
 initDashboard();
 setStatus("Dashboard — Press ` to enter a command");
-
-// ─── GLOBAL EXPOSURE FOR INLINE onclick HANDLERS ──────────────────────────────
-// Removed in Phase 6 once all inline handlers switch to event delegation.
-window.runCommand       = runCommand;
-window.showDashboard    = showDashboard;
-window.openArticle      = openArticle;
-window.closeArticle     = closeArticle;
-window.renderChart      = renderChart;
-window.renderNews       = renderNews;
-window.renderFinancials = renderFinancials;
-window.renderMost       = renderMost;
-window.refreshCard      = refreshCard;
-window.removeCard       = removeCard;
