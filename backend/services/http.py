@@ -8,6 +8,7 @@ to bare `python-requests` UAs (403s, consent walls, empty bodies).
 Callers supply the Accept header for their media type (JSON for APIs, HTML
 for article scraping) and any extra headers they need.
 """
+from __future__ import annotations
 import requests
 
 _USER_AGENT = (

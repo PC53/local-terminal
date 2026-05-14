@@ -5,6 +5,7 @@ import renderNews,       { meta as newsMeta }  from './news.js';
 import renderFinancials, { meta as finMeta }   from './financials.js';
 import renderMost,       { meta as mostMeta }  from './most.js';
 import renderAdd,        { meta as addMeta }   from './add.js';
+import renderPort,       { meta as portMeta }  from './port.js';
 import renderHelp,       { meta as helpMeta }  from './help.js';
 import { showDashboard } from '../views.js';
 
@@ -14,6 +15,7 @@ export const COMMANDS = {
   'NEWS':  { ...newsMeta,  fn: renderNews },
   'FIN':   { ...finMeta,   fn: renderFinancials },
   'MOST':  { ...mostMeta,  fn: renderMost },
+  'PORT':  { ...portMeta,  fn: renderPort },
   'ADD':   { ...addMeta,   fn: renderAdd },
   'DASH':  { desc: 'Return to the dashboard canvas', usage: 'DASH', fn: showDashboard },
   'HELP':  { ...helpMeta,  fn: renderHelp },

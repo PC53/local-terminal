@@ -13,6 +13,11 @@ import { openArticle, closeArticle } from './article-reader.js';
 import {
   renderChart, renderNews, renderFinancials, renderMost,
 } from './commands/registry.js';
+import {
+  portTab, portRemoveConfirm, portRemoveYes,
+  portStartEdit, portSaveEdit,
+  portConfirmClear, portClearYes,
+} from './commands/port.js';
 
 // ─── CLOCK ────────────────────────────────────────────────────────────────────
 function updateClock() {
@@ -88,3 +93,10 @@ window.renderFinancials = renderFinancials;
 window.renderMost       = renderMost;
 window.refreshCard      = refreshCard;
 window.removeCard       = removeCard;
+window.portTab          = portTab;
+window.portRemoveConfirm = portRemoveConfirm;
+window.portRemoveYes    = portRemoveYes;
+window.portStartEdit    = portStartEdit;
+window.portSaveEdit     = portSaveEdit;
+window.portConfirmClear = portConfirmClear;
+window.portClearYes     = portClearYes;

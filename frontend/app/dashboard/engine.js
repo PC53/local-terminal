@@ -3,18 +3,20 @@
 import { dashboard } from '../state.js';
 import { canvas } from '../dom.js';
 import { initDrag, initResize } from './drag-resize.js';
-import loadChartCard from './cards/chart.js';
-import loadQuoteCard from './cards/quote.js';
-import loadNewsCard  from './cards/news.js';
-import loadWatchCard from './cards/watch.js';
+import loadChartCard     from './cards/chart.js';
+import loadQuoteCard     from './cards/quote.js';
+import loadNewsCard      from './cards/news.js';
+import loadWatchCard     from './cards/watch.js';
+import loadPortfolioCard from './cards/portfolio.js';
 
-const REFRESH_MS = { chart: 90000, quote: 15000, news: 120000, watch: 20000 };
+const REFRESH_MS = { chart: 90000, quote: 15000, news: 120000, watch: 20000, portfolio: 30000 };
 
 const CARD_DIMS = {
-  chart: { w: 460, h: 280 },
-  quote: { w: 220, h: 160 },
-  news:  { w: 320, h: 360 },
-  watch: { w: 220, h: 320 },
+  chart:     { w: 460, h: 280 },
+  quote:     { w: 220, h: 160 },
+  news:      { w: 320, h: 360 },
+  watch:     { w: 220, h: 320 },
+  portfolio: { w: 360, h: 300 },
 };
 
 export function saveCards() {
@@ -65,7 +67,7 @@ export function mountCard(card, animate = true) {
   el.style.width  = card.w + 'px';
   el.style.height = card.h + 'px';
 
-  const typeLabel = { chart: 'CHART', quote: 'QUOTE', news: 'NEWS', watch: 'WATCH' }[card.type] || card.type.toUpperCase();
+  const typeLabel = { chart: 'CHART', quote: 'QUOTE', news: 'NEWS', watch: 'WATCH', portfolio: 'PORTFOLIO' }[card.type] || card.type.toUpperCase();
 
   el.innerHTML = `
     <div class="card-header">
@@ -94,10 +96,11 @@ async function loadCardContent(card) {
   const body = document.getElementById(`body_${card.id}`);
   if (!body) return;
   try {
-    if (card.type === 'chart')      await loadChartCard(card, body);
-    else if (card.type === 'quote') await loadQuoteCard(card, body);
-    else if (card.type === 'news')  await loadNewsCard(card, body);
-    else if (card.type === 'watch') await loadWatchCard(card, body);
+    if (card.type === 'chart')           await loadChartCard(card, body);
+    else if (card.type === 'quote')      await loadQuoteCard(card, body);
+    else if (card.type === 'news')       await loadNewsCard(card, body);
+    else if (card.type === 'watch')      await loadWatchCard(card, body);
+    else if (card.type === 'portfolio')  await loadPortfolioCard(card, body);
   } catch (err) {
     body.innerHTML = `<div class="card-err">⚠ ${err.message}</div>`;
   }
@@ -129,7 +132,7 @@ function initAutoRefresh(card) {
       return;
     }
     // Charts refresh on demand only; others refresh silently.
-    if (card.type === 'quote' || card.type === 'watch' || card.type === 'news') {
+    if (card.type === 'quote' || card.type === 'watch' || card.type === 'news' || card.type === 'portfolio') {
       loadCardContent(card);
     }
   }, ms);

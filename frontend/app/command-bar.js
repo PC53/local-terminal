@@ -213,11 +213,17 @@ export function executeCommand(input) {
   setStatus(`Running: ${trimmed}`);
 
   if (cmd === 'ADD') {
-    // ADD CHART AAPL / ADD QUOTE TSLA / ADD NEWS / ADD WATCH
+    // ADD CHART AAPL / ADD QUOTE TSLA / ADD NEWS / ADD WATCH / ADD PORT
     const cardType   = (parts[1] || 'quote').toLowerCase();
     const cardTicker = parts[2] || parts[1] || '';
     const addFn = COMMANDS.ADD && COMMANDS.ADD.fn;
     if (addFn) addFn(cardType, cardTicker);
+    return;
+  }
+
+  if (cmd === 'PORT') {
+    const portFn = COMMANDS.PORT && COMMANDS.PORT.fn;
+    if (portFn) portFn(parts.slice(1));
     return;
   }
 
