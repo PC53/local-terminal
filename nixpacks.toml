@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["rustc", "cargo", "openssl", "pkg-config", "cacert"]
+
+[phases.install]
+cmds = []
+
+[phases.build]
+cmds = ["cd backend-rust && cargo build --release"]
+
+[start]
+cmd = "./backend-rust/target/release/server"
