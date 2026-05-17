@@ -7,35 +7,27 @@ on:
     branches: ["master"]
 
 jobs:
-  rust:
-    name: Build & test Rust backend
+  test:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/setup-python@v5
         with:
-          toolchain: stable
+          python-version: "3.11"
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            backend-rust/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('backend-rust/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
 
-      - name: Build (release)
-        working-directory: backend-rust
-        run: cargo build --release
+      - name: Check app imports cleanly
+        run: |
+          cd backend
+          python -c "import main; print('Import OK')"
 
       - name: Health check (start + curl)
-        working-directory: backend-rust
         run: |
-          ./target/release/server &
-          sleep 2
-          curl -sf http://localhost:8000/health | python3 -c \
-            "import sys,json; d=json.load(sys.stdin); assert d['status']=='ok', d; print('Health OK')"
+          cd backend
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+          curl -sf http://localhost:8000/health | python -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='ok', d; print('Health OK')"
